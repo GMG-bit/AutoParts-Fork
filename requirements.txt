@@ -4,4 +4,5 @@ djangorestframework==3.16.0
 sqlparse==0.5.3
 Pillow==11.2.1
 phonenumbers==9.0.6
-jazzmin
+# Hemos fijado la versión 5.3.0 de jazzmin, ya que es compatible con Python 3.11 y Django 5.x
+jazzmin==5.3.0
