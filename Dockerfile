@@ -1,18 +1,45 @@
-# Usa una imagen base de Python ligera
-FROM python:3.9-slim
+# === ETAPA 1: BUILDER y PRUEBAS ===
+# Usamos una imagen base con Python
+FROM python:3.11-slim as builder
 
-# Establece el directorio de trabajo dentro del contenedor
+# Configuramos el entorno
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 WORKDIR /usr/src/app
 
-# Copia el archivo de requisitos y lo instala
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Copiamos solo el archivo de requerimientos para aprovechar el cache de Docker
+COPY requirements.txt .
 
-# Copia el resto de la aplicación
+# Instalamos dependencias
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+
+# Copiamos el resto del código fuente
 COPY . .
 
-# Expone el puerto por defecto de Django
+# Comando de prueba que GitHub Actions ejecutará (Asegúrate de tener un script 'run_tests.sh' o similar)
+# Por ejemplo, puedes cambiar esto por RUN python manage.py test o RUN pytest
+# En este ejemplo, solo preparamos la imagen para el paso de pruebas en el workflow.
+
+# === ETAPA 2: PRODUCCIÓN (FINAL) ===
+# Imagen final más limpia y pequeña
+FROM python:3.11-slim
+
+# Configuramos el entorno de producción
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+WORKDIR /usr/src/app
+
+# Copiamos las dependencias y el código desde la etapa 'builder'
+# Esto asegura que solo se copian los archivos esenciales y no las herramientas de desarrollo
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/src/app /usr/src/app
+
+# Opcional: Si usas una base de datos, podrías necesitar instalar 'psycopg2-binary' o 'mysqlclient' en la etapa final si no están ya en requirements.txt
+
+# Exponemos el puerto de Django
 EXPOSE 8000
 
-# Comando para ejecutar el servidor Django
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Comando para correr la aplicación
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "nombre_de_tu_proyecto.wsgi:application"]
+# NOTA: Reemplaza "nombre_de_tu_proyecto" con el nombre de tu directorio de proyecto Django principal.
